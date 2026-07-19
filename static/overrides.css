@@ -1,0 +1,44 @@
+/* The semantic hidden attribute must win over the workspace layout rule. */
+[hidden] { display: none !important; }
+
+/* Let empty board space reach the drawing/panning layer while board items stay interactive. */
+#items { pointer-events: none; }
+#items .item { pointer-events: auto; }
+
+/* Plain text boxes have no sticky-note background or shadow. */
+.item.text-box { box-shadow: none; border: 1px dashed transparent; border-radius: 0; }
+.item.text-box:hover, .item.text-box:focus-within { border-color: #8da0b4; }
+.item.text-box .note { padding: 8px; font-size: 20px; font-weight: 600; }
+
+.brush { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; white-space: nowrap; }
+.brush input { width: 76px; }
+.brush output { min-width: 18px; text-align: right; }
+
+/* Cartoon workshop shell — the board itself intentionally remains white. */
+:root { color: #3f2516; background: #7a4227; font-family: "Trebuchet MS", "Arial Rounded MT Bold", system-ui, sans-serif; }
+body { background: repeating-linear-gradient(8deg, #784127 0 5px, #6a3722 5px 8px, #864a2b 8px 14px); }
+aside { background: linear-gradient(90deg, #8f5330, #b77343 10%, #99562f 92%, #6f3b23); border-right: 5px solid #482515; box-shadow: inset -3px 0 #d59355, 5px 0 14px #2c150d77; color: #fff3d2; }
+aside header { background: linear-gradient(#c9824c, #9a522c); border-bottom: 3px solid #62311c; box-shadow: inset 0 2px #e9ad70; }
+aside h1 { color: #fff5cd; letter-spacing: .5px; text-shadow: 2px 2px 0 #58301a; }
+aside button, .upload, .tools button { border: 2px solid #5a2e19; border-bottom-width: 4px; background: linear-gradient(#ffd978, #f5a93b); color: #4a2818; box-shadow: inset 0 2px #fff1ae, 0 3px 0 #5a2e19; font-weight: 800; }
+aside button:hover, .upload:hover, .tools button:hover { background: linear-gradient(#ffe89a, #ffc553); transform: translateY(-1px); }
+aside button:active, .upload:active, .tools button:active { transform: translateY(2px); box-shadow: inset 0 2px #e39d37, 0 1px 0 #5a2e19; }
+.search input, #pageTitle { border: 3px solid #6b3820; background: #fff7dc; box-shadow: inset 0 2px 4px #6d3d2150; color: #48291b; }
+.notebook { background: #88482770; border: 2px solid #d78b50; border-radius: 12px; box-shadow: 0 3px 0 #64321d; overflow: hidden; }
+.notebook-head { color: #fff4d7; text-shadow: 1px 1px #67351d; }
+.page-row { color: #fff2d5; font-weight: 700; }
+.page-row:hover { background: #d4874d; color: #402113; }
+.page-row.selected { background: #ffe188; color: #4a2615; box-shadow: inset 0 0 0 2px #6d341b; text-shadow: none; }
+.tiny { opacity: .82; }
+main { background: repeating-linear-gradient(92deg, #744025 0 11px, #82492a 11px 14px, #66351f 14px 16px); }
+#topbar { background: linear-gradient(#bd7040, #824220); border-top: 3px solid #e7a369; border-bottom: 5px solid #512716; box-shadow: 0 4px 11px #2c160e88; }
+#topbar::before { content: "Workshop Whiteboard"; color: #fff4cf; font-weight: 900; text-shadow: 2px 2px #5b2d18; white-space: nowrap; }
+.tools button.active { background: linear-gradient(#a5e6ff, #55a9d0); border-color: #24536d; box-shadow: inset 0 2px #e1fbff, 0 3px 0 #24536d; }
+.tools input[type=color] { border: 3px solid #542b1a; border-radius: 8px; background: #f6c76c; box-shadow: 0 2px 0 #542b1a; }
+.brush { background: #f8ca6e; border: 2px solid #5a2e19; border-radius: 8px; padding: 3px 6px; box-shadow: 0 2px 0 #5a2e19; color: #4a2818; font-weight: 800; }
+#viewport { background-color: #704025; background-image: repeating-linear-gradient(10deg, #7a4529 0 6px, #66351f 6px 8px, #8c5230 8px 17px); }
+#board { border: 10px solid #e3a866; border-radius: 12px; box-shadow: 0 0 0 5px #58301b, 0 14px 25px #2c160eaa; }
+#empty { color: #fff1ca; text-shadow: 2px 2px #4c2615; }
+#empty h2 { font-size: 30px; }
+.item { border: 2px solid #5b3623; box-shadow: 5px 6px 0 #5b362345, 0 6px 18px #24364a2b; }
+.item.text-box { border-color: transparent; box-shadow: none; }
