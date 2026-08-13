@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
+from PIL import Image, ImageDraw, ImageFont
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
@@ -258,24 +259,65 @@ def create_app(test_config=None):
         pdf_buffer = io.BytesIO()
         c = canvas.Canvas(pdf_buffer, pagesize=letter)
         width, height = letter
-        title_y = height - 0.5 * inch
 
         for page_num, page in enumerate(pages, 1):
-            page_data = dict(get_page(conn, page['id']))
             items = rows(conn, "SELECT * FROM board_items WHERE page_id = ? ORDER BY position, id", (page['id'],))
             strokes = rows(conn, "SELECT * FROM strokes WHERE page_id = ? ORDER BY position, id", (page['id'],))
 
-            c.setFont("Helvetica-Bold", 16)
-            c.drawString(0.5 * inch, title_y, f"Page {page_num}: {page['title']}")
+            for stroke in strokes: stroke["points"] = json.loads(stroke["points"])
 
-            y = title_y - 0.4 * inch
-            c.setFont("Helvetica", 10)
+            # Calculate bounding box
+            min_x, min_y, max_x, max_y = float('inf'), float('inf'), 0, 0
             for item in items:
-                if item['kind'] == 'note': c.drawString(0.5 * inch, y, f"• Note: {item['content'][:60]}"); y -= 0.2 * inch
+                min_x = min(min_x, item['x']); min_y = min(min_y, item['y'])
+                max_x = max(max_x, item['x'] + item['width']); max_y = max(max_y, item['y'] + item['height'])
+            for stroke in strokes:
+                for p in stroke['points']:
+                    min_x = min(min_x, p['x'] - 20); min_y = min(min_y, p['y'] - 20)
+                    max_x = max(max_x, p['x'] + 20); max_y = max(max_y, p['y'] + 20)
 
-            if strokes: c.drawString(0.5 * inch, y, f"({len(strokes)} strokes/drawings)")
+            if min_x == float('inf'): min_x, min_y, max_x, max_y = 0, 0, 800, 600
 
-            c.drawString(width - 1 * inch - 20, 0.3 * inch, f"Page {page_num}")
+            # Render page to image
+            img_w, img_h = int(max_x - min_x + 40), int(max_y - min_y + 40)
+            img = Image.new('RGB', (img_w, img_h), 'white')
+            draw = ImageDraw.Draw(img)
+
+            # Draw strokes
+            for stroke in strokes:
+                color = stroke['color']
+                width = int(stroke['width'])
+                points = [(int(p['x'] - min_x + 20), int(p['y'] - min_y + 20)) for p in stroke['points']]
+                if len(points) > 1:
+                    draw.line(points, fill=color, width=width)
+
+            # Draw items
+            for item in items:
+                if item['kind'] == 'image' and item['image_name']:
+                    try:
+                        img_path = Path(app.config["UPLOAD_FOLDER"]) / item['image_name']
+                        if img_path.exists():
+                            upload_img = Image.open(img_path).resize((int(item['width']), int(item['height'])))
+                            img.paste(upload_img, (int(item['x'] - min_x + 20), int(item['y'] - min_y + 20)))
+                    except: pass
+                elif item['kind'] == 'note' and item['content']:
+                    try:
+                        font = ImageFont.load_default()
+                        draw.text((int(item['x'] - min_x + 25), int(item['y'] - min_y + 25)), item['content'][:100], fill='black', font=font)
+                    except: pass
+
+            # Save image temporarily
+            img_buffer = io.BytesIO()
+            img.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+
+            # Add to PDF
+            c.drawString(0.5 * inch, height - 0.4 * inch, f"Page {page_num}: {page['title']}")
+            img_buffer.seek(0)
+            from reportlab.platypus import Image as RLImage
+            rl_img = RLImage(img_buffer, width=7*inch, height=5*inch)
+            rl_img.drawOn(c, 0.4*inch, 1.2*inch)
+            c.drawString(width - 1.2*inch, 0.3*inch, f"Page {page_num}")
             c.showPage()
 
         conn.close()
