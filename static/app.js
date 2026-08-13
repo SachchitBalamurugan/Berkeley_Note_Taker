@@ -197,7 +197,6 @@ function fitView() {
   state.view.y = viewHeight / 2 - (minY + (maxY - minY) / 2) * zoom;
   setView();
 }
-document.querySelector('#fit').onclick=fitView;
 document.querySelector('#undo').onclick=undo;
 document.querySelector('#redo').onclick=redo;
 document.querySelector('#brushSize').oninput=e=>{document.querySelector('#brushValue').value=e.target.value;document.querySelector('#brushValue').textContent=e.target.value;};
@@ -216,6 +215,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     else if(dir === 'right') state.view.x -= pan;
     else if(zoom === 'in') state.view.zoom = Math.min(2.5, state.view.zoom * 1.2);
     else if(zoom === 'out') state.view.zoom = Math.max(0.25, state.view.zoom / 1.2);
+    else if(btn.id === 'fit') fitView();
     setView();
   });
 });
