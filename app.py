@@ -6,9 +6,12 @@ import subprocess
 import uuid
 from pathlib import Path
 
-from flask import Flask, abort, jsonify, render_template, request, send_from_directory
+from flask import Flask, abort, jsonify, render_template, request, send_from_directory, send_file
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
@@ -243,6 +246,42 @@ def create_app(test_config=None):
             return jsonify({"status": "error", "message": e.stderr.decode() if isinstance(e.stderr, bytes) else str(e)}), 400
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.get("/api/notebooks/<int:notebook_id>/export")
+    def export_notebook(notebook_id):
+        conn = connect()
+        notebook = conn.execute("SELECT * FROM notebooks WHERE id = ?", (notebook_id,)).fetchone()
+        if not notebook: abort(404, "Notebook not found")
+        pages = rows(conn, "SELECT * FROM pages WHERE notebook_id = ? ORDER BY position, id", (notebook_id,))
+        if not pages: abort(400, "Cannot export empty notebook")
+
+        pdf_buffer = io.BytesIO()
+        c = canvas.Canvas(pdf_buffer, pagesize=letter)
+        width, height = letter
+        title_y = height - 0.5 * inch
+
+        for page_num, page in enumerate(pages, 1):
+            page_data = dict(get_page(conn, page['id']))
+            items = rows(conn, "SELECT * FROM board_items WHERE page_id = ? ORDER BY position, id", (page['id'],))
+            strokes = rows(conn, "SELECT * FROM strokes WHERE page_id = ? ORDER BY position, id", (page['id'],))
+
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(0.5 * inch, title_y, f"Page {page_num}: {page['title']}")
+
+            y = title_y - 0.4 * inch
+            c.setFont("Helvetica", 10)
+            for item in items:
+                if item['kind'] == 'note': c.drawString(0.5 * inch, y, f"• Note: {item['content'][:60]}"); y -= 0.2 * inch
+
+            if strokes: c.drawString(0.5 * inch, y, f"({len(strokes)} strokes/drawings)")
+
+            c.drawString(width - 1 * inch - 20, 0.3 * inch, f"Page {page_num}")
+            c.showPage()
+
+        conn.close()
+        c.save()
+        pdf_buffer.seek(0)
+        return send_file(pdf_buffer, mimetype='application/pdf', as_attachment=True, download_name=f"{notebook['title']}.pdf")
 
     @app.errorhandler(RequestEntityTooLarge)
     def file_too_large(error):

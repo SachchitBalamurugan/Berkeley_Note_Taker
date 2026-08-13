@@ -42,6 +42,7 @@ function renderTree() {
     group.addEventListener('drop', async e => { const source = e.dataTransfer.getData('notebook'); if (!source) return; e.preventDefault(); const ids = state.notebooks.map(n => n.id); ids.splice(ids.indexOf(+source),1); ids.splice(ids.indexOf(notebook.id),0,+source); await api('/api/notebooks/reorder',{method:'POST',body:JSON.stringify({ids})}); await refreshTree(); });
     const head = document.createElement('div'); head.className = 'notebook-head'; head.innerHTML = `<span class="title">${escapeText(notebook.title)}</span>`;
     head.append(iconButton('+ Page', 'Add page', () => createPage(notebook.id)));
+    head.append(iconButton('⬇', 'Export notebook', () => exportNotebook(notebook)));
     head.append(iconButton('✎', 'Rename notebook', () => renameNotebook(notebook)));
     head.append(iconButton('×', 'Delete notebook', () => removeNotebook(notebook)));
     group.append(head);
@@ -64,6 +65,7 @@ async function createPage(notebookId) { const title = prompt('Page name:', 'New 
 async function renameNotebook(n) { const title = prompt('New notebook name:',n.title); if (!title) return; await api(`/api/notebooks/${n.id}`,{method:'PATCH',body:JSON.stringify({title})}); refreshTree(); }
 async function renamePage(p) { const title = prompt('New page name:',p.title); if (!title) return; await api(`/api/pages/${p.id}`,{method:'PATCH',body:JSON.stringify({title})}); if(state.page?.id===p.id) pageTitle.value=title; refreshTree(); }
 async function removeNotebook(n) { if (!confirm(`Delete “${n.title}” and all of its pages? This cannot be undone.`)) return; await api(`/api/notebooks/${n.id}`,{method:'DELETE'}); if (state.page && n.pages.some(p=>p.id===state.page.id)) closePage(); refreshTree(); }
+async function exportNotebook(n) { if (!n.pages.length) { alert('Cannot export empty notebook'); return; } const link = document.createElement('a'); link.href = `/api/notebooks/${n.id}/export`; link.download = `${n.title.replace(/[^a-z0-9]/gi,'_')}.pdf`; link.click(); }
 async function removePage(p) { if (!confirm(`Delete “${p.title}” and all its board content? This cannot be undone.`)) return; await api(`/api/pages/${p.id}`,{method:'DELETE'}); if(state.page?.id===p.id) closePage(); refreshTree(); }
 function closePage(){ state.page=null; workspace.hidden=true; empty.hidden=false; renderTree(); }
 async function openPage(id) { state.page = await api(`/api/pages/${id}`); state.history=[]; state.redo=[]; updateHistoryButtons(); workspace.hidden=false; empty.hidden=true; pageTitle.value=state.page.title; renderBoard(); renderTree(); }
