@@ -222,5 +222,17 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
   });
 });
 viewport.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();const r=viewport.getBoundingClientRect(), old=state.view.zoom, next=Math.max(.25,Math.min(1.5,old*(e.deltaY>0?.9:1.1)));const dx=e.clientX-r.left,dy=e.clientY-r.top;state.view.x=dx-(dx-state.view.x)*next/old;state.view.y=dy-(dy-state.view.y)*next/old;state.view.zoom=next;setView();},{passive:false});
+const joystick = document.querySelector('#joystick'), stick = document.querySelector('#joystick-stick');
+let joystickActive = false, joystickX = 0, joystickY = 0, joystickInterval = null;
+function updateJoystick(clientX, clientY) {
+  const rect = joystick.getBoundingClientRect(), cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const dx = clientX - cx, dy = clientY - cy, dist = Math.hypot(dx, dy), radius = rect.width / 2 - 15;
+  const angle = Math.atan2(dy, dx), maxDist = Math.min(dist, radius);
+  joystickX = Math.cos(angle) * maxDist; joystickY = Math.sin(angle) * maxDist;
+  stick.style.transform = `translate(${joystickX}px, ${joystickY}px)`;
+}
+joystick.addEventListener('pointerdown', (e) => { joystickActive = true; e.preventDefault(); joystickInterval = setInterval(() => { if (joystickActive && (joystickX || joystickY)) { state.view.x -= joystickX * 0.5; state.view.y -= joystickY * 0.5; setView(); } }, 16); updateJoystick(e.clientX, e.clientY); });
+document.addEventListener('pointermove', (e) => { if (joystickActive) updateJoystick(e.clientX, e.clientY); });
+document.addEventListener('pointerup', () => { joystickActive = false; joystickX = 0; joystickY = 0; stick.style.transform = 'translate(0, 0)'; clearInterval(joystickInterval); });
 document.querySelector('#search').addEventListener('input',debounce(async e=>{const host=document.querySelector('#results'),q=e.target.value.trim();host.innerHTML='';if(!q)return;const results=await api(`/api/search?q=${encodeURIComponent(q)}`);results.forEach(result=>{const b=document.createElement('button');b.className='result';b.innerHTML=`${escapeText(result.page_title)}<small>${escapeText(result.notebook_title)}</small>`;b.onclick=()=>{host.innerHTML='';document.querySelector('#search').value='';openPage(result.page_id)};host.append(b)});},220));
 setView();refreshTree();
