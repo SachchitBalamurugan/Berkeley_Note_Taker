@@ -73,7 +73,19 @@ function renderItem(item) {
   node.addEventListener('pointerdown', startItemAction); itemsRoot.append(node);
 }
 function renderStroke(stroke) { const p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.dataset.id=stroke.id; p.classList.add('stroke'); p.setAttribute('d', pointsToPath(stroke.points)); p.setAttribute('stroke',stroke.color); p.setAttribute('stroke-width',stroke.width); if(stroke.tool==='highlighter') p.setAttribute('opacity','.32'); if(state.tool==='eraser') p.style.pointerEvents='stroke'; strokesRoot.append(p); }
-function pointsToPath(points) { return points.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' '); }
+function pointsToPath(points) {
+  if (points.length < 2) return '';
+  if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const p0 = points[i - 1], p1 = points[i], p2 = points[i + 1];
+    const cp1x = p1.x + (p2.x - p0.x) * 0.2;
+    const cp1y = p1.y + (p2.y - p0.y) * 0.2;
+    path += ` Q ${cp1x} ${cp1y} ${p2.x} ${p2.y}`;
+  }
+  return path;
+}
 async function saveItem(item, keys) { const body={}; keys.forEach(k=>body[k]=item[k]); await api(`/api/items/${item.id}`,{method:'PATCH',body:JSON.stringify(body)}); }
 
 function startItemAction(e) {
@@ -107,7 +119,7 @@ function pointerMove(e) {
   const a=state.interaction; if(!a) return;
   if(a.type==='pinch') { if(state.touchPoints.size<2)return; const [first,second]=[...state.touchPoints.values()]; const distance=Math.hypot(second.x-first.x,second.y-first.y); const zoom=Math.max(.25,Math.min(2.5,a.zoom*distance/a.distance)); const rect=viewport.getBoundingClientRect(), cx=(first.x+second.x)/2-rect.left, cy=(first.y+second.y)/2-rect.top; state.view.x=cx-(cx-a.x)*zoom/a.zoom; state.view.y=cy-(cy-a.y)*zoom/a.zoom; state.view.zoom=zoom; setView(); return; }
   if(a.pointerId!==e.pointerId) return;
-  if(a.type==='pan') { state.view.x=a.x+e.clientX-a.startClient.x; state.view.y=a.y+e.clientY-a.startClient.y; setView(); return; } const p=boardPoint(e); if(a.type==='draw') { a.points.push(p); a.path.setAttribute('d',pointsToPath(a.points)); return; } if(a.type==='move') { a.item.x=Math.max(0,a.x+p.x-a.start.x); a.item.y=Math.max(0,a.y+p.y-a.start.y); } if(a.type==='resize') { a.item.width=Math.max(130,a.width+p.x-a.start.x); a.item.height=Math.max(80,a.height+p.y-a.start.y); } a.node.style.left=`${a.item.x}px`;a.node.style.top=`${a.item.y}px`;a.node.style.width=`${a.item.width}px`;a.node.style.height=`${a.item.height}px`;
+  if(a.type==='pan') { state.view.x=a.x+e.clientX-a.startClient.x; state.view.y=a.y+e.clientY-a.startClient.y; setView(); return; } const p=boardPoint(e); if(a.type==='draw') { const lastPoint=a.points[a.points.length-1]; if(!lastPoint || Math.hypot(p.x-lastPoint.x, p.y-lastPoint.y) > 2) { a.points.push(p); a.path.setAttribute('d',pointsToPath(a.points)); } return; } if(a.type==='move') { a.item.x=Math.max(0,a.x+p.x-a.start.x); a.item.y=Math.max(0,a.y+p.y-a.start.y); } if(a.type==='resize') { a.item.width=Math.max(130,a.width+p.x-a.start.x); a.item.height=Math.max(80,a.height+p.y-a.start.y); } a.node.style.left=`${a.item.x}px`;a.node.style.top=`${a.item.y}px`;a.node.style.width=`${a.item.width}px`;a.node.style.height=`${a.item.height}px`;
 }
 async function createStroke(stroke) { return api(`/api/pages/${state.page.id}/strokes`, {method:'POST', body:JSON.stringify({tool:stroke.tool,color:stroke.color,width:stroke.width,points:stroke.points})}); }
 async function removeStroke(stroke) { await api(`/api/strokes/${stroke.id}`,{method:'DELETE'}); state.page.strokes=state.page.strokes.filter(s=>s.id!==stroke.id); strokesRoot.querySelector(`path[data-id="${stroke.id}"]`)?.remove(); }
@@ -156,6 +168,21 @@ document.querySelector('#brushSize').oninput=e=>{document.querySelector('#brushV
 document.addEventListener('keydown',e=>{ if(!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=='z'||e.target.isContentEditable||['INPUT','TEXTAREA'].includes(e.target.tagName)) return; e.preventDefault(); if(e.shiftKey) redo(); else undo(); });
 pageTitle.addEventListener('change',async()=>{if(state.page&&pageTitle.value.trim()){state.page.title=pageTitle.value.trim();await api(`/api/pages/${state.page.id}`,{method:'PATCH',body:JSON.stringify({title:state.page.title})});refreshTree();}});
 viewport.addEventListener('pointerdown',canvasDown); viewport.addEventListener('pointermove',pointerMove); viewport.addEventListener('pointerup',pointerUp); viewport.addEventListener('pointercancel',pointerUp);
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    const dir = btn.dataset.dir;
+    const zoom = btn.dataset.zoom;
+    const pan = 60;
+    if(dir === 'up') state.view.y += pan;
+    else if(dir === 'down') state.view.y -= pan;
+    else if(dir === 'left') state.view.x += pan;
+    else if(dir === 'right') state.view.x -= pan;
+    else if(zoom === 'in') state.view.zoom = Math.min(2.5, state.view.zoom * 1.2);
+    else if(zoom === 'out') state.view.zoom = Math.max(0.25, state.view.zoom / 1.2);
+    setView();
+  });
+});
 viewport.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();const r=viewport.getBoundingClientRect(), old=state.view.zoom, next=Math.max(.25,Math.min(1.5,old*(e.deltaY>0?.9:1.1)));const dx=e.clientX-r.left,dy=e.clientY-r.top;state.view.x=dx-(dx-state.view.x)*next/old;state.view.y=dy-(dy-state.view.y)*next/old;state.view.zoom=next;setView();},{passive:false});
 document.querySelector('#search').addEventListener('input',debounce(async e=>{const host=document.querySelector('#results'),q=e.target.value.trim();host.innerHTML='';if(!q)return;const results=await api(`/api/search?q=${encodeURIComponent(q)}`);results.forEach(result=>{const b=document.createElement('button');b.className='result';b.innerHTML=`${escapeText(result.page_title)}<small>${escapeText(result.notebook_title)}</small>`;b.onclick=()=>{host.innerHTML='';document.querySelector('#search').value='';openPage(result.page_id)};host.append(b)});},220));
 setView();refreshTree();
