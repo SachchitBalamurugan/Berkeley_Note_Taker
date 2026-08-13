@@ -232,8 +232,8 @@ def create_app(test_config=None):
     def sync_to_github():
         try:
             cwd = str(BASE_DIR)
-            subprocess.run(["git", "add", "whiteboard.db"], cwd=cwd, capture_output=True, check=True)
-            result = subprocess.run(["git", "commit", "-m", "Auto-sync: Update database"], cwd=cwd, capture_output=True, text=True)
+            subprocess.run(["git", "add", "whiteboard.db", "uploads/"], cwd=cwd, capture_output=True, check=True)
+            result = subprocess.run(["git", "commit", "-m", "Auto-sync: Update database and images"], cwd=cwd, capture_output=True, text=True)
             if result.returncode == 0 or "nothing to commit" in result.stdout.lower() or "nothing to commit" in result.stderr.lower():
                 push = subprocess.run(["git", "push", "origin", "main"], cwd=cwd, capture_output=True, text=True)
                 if push.returncode == 0: return jsonify({"status": "success", "message": "Changes pushed to GitHub"}), 200
