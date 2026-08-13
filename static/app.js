@@ -167,6 +167,37 @@ document.querySelector('#addText').onclick=async()=>{
 document.querySelector('#upload').onchange=async e=>{const file=e.target.files[0];if(!file||!state.page)return;const form=new FormData();form.append('image',file);try{const item=await api(`/api/pages/${state.page.id}/upload`,{method:'POST',body:form});state.page.items.push(item);renderItem(item);}catch(err){alert(err.message)}e.target.value='';};
 document.querySelector('#syncBtn').onclick=async()=>{const btn=document.querySelector('#syncBtn');btn.disabled=true;btn.textContent='⏳ Syncing...';try{const res=await api('/api/sync',{method:'POST'});btn.textContent='✓ '+res.message;setTimeout(()=>{btn.textContent='☁ Sync'},3000);}catch(err){btn.textContent='✗ Sync failed';console.error(err);setTimeout(()=>{btn.textContent='☁ Sync'},3000);}finally{btn.disabled=false;}};
 toolButtons.forEach(b=>b.onclick=()=>{state.tool=b.dataset.tool;toolButtons.forEach(x=>x.classList.toggle('active',x===b));document.body.classList.toggle('drawing',['pen','highlighter'].includes(state.tool));document.body.classList.toggle('eraser',state.tool==='eraser');strokesRoot.querySelectorAll('path').forEach(p=>p.style.pointerEvents=state.tool==='eraser'?'stroke':'none');});
+function fitView() {
+  if (!state.page || (!state.page.items.length && !state.page.strokes.length)) {
+    state.view = {x: 55, y: 45, zoom: 0.62};
+    setView();
+    return;
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  state.page.items.forEach(item => {
+    minX = Math.min(minX, item.x);
+    minY = Math.min(minY, item.y);
+    maxX = Math.max(maxX, item.x + item.width);
+    maxY = Math.max(maxY, item.y + item.height);
+  });
+  state.page.strokes.forEach(stroke => {
+    stroke.points.forEach(p => {
+      minX = Math.min(minX, p.x - stroke.width / 2);
+      minY = Math.min(minY, p.y - stroke.width / 2);
+      maxX = Math.max(maxX, p.x + stroke.width / 2);
+      maxY = Math.max(maxY, p.y + stroke.width / 2);
+    });
+  });
+  if (!isFinite(minX)) { state.view = {x: 55, y: 45, zoom: 0.62}; setView(); return; }
+  const padding = 80, width = maxX - minX + padding * 2, height = maxY - minY + padding * 2;
+  const viewWidth = viewport.clientWidth, viewHeight = viewport.clientHeight;
+  const zoom = Math.min(viewWidth / width, viewHeight / height, 1.5);
+  state.view.zoom = zoom;
+  state.view.x = viewWidth / 2 - (minX + (maxX - minX) / 2) * zoom;
+  state.view.y = viewHeight / 2 - (minY + (maxY - minY) / 2) * zoom;
+  setView();
+}
+document.querySelector('#fit').onclick=fitView;
 document.querySelector('#undo').onclick=undo;
 document.querySelector('#redo').onclick=redo;
 document.querySelector('#brushSize').oninput=e=>{document.querySelector('#brushValue').value=e.target.value;document.querySelector('#brushValue').textContent=e.target.value;};
