@@ -11,7 +11,7 @@ const api = async (url, options = {}) => {
 const tree = document.querySelector('#tree'), workspace = document.querySelector('#workspace'), empty = document.querySelector('#empty');
 const board = document.querySelector('#board'), viewport = document.querySelector('#viewport'), itemsRoot = document.querySelector('#items'), strokesRoot = document.querySelector('#strokes');
 const pageTitle = document.querySelector('#pageTitle'), toolButtons = [...document.querySelectorAll('[data-tool]')];
-const state = {notebooks: [], page: null, tool: 'select', view: {x: 55, y: 45, zoom: 0.62}, interaction: null, firstLoad: true, history: [], redo: [], replaying: false, touchPoints: new Map()};
+const state = {notebooks: [], page: null, tool: 'select', view: {x: 0, y: 0, zoom: 0.5}, interaction: null, firstLoad: true, history: [], redo: [], replaying: false, touchPoints: new Map()};
 const colors = ['#fff3a8', '#ffd6e0', '#d9f8c4', '#cdeaff', '#e9d5ff'];
 
 function setView() { board.style.transform = `translate(${state.view.x}px,${state.view.y}px) scale(${state.view.zoom})`; }
@@ -169,7 +169,7 @@ document.querySelector('#syncBtn').onclick=async()=>{const btn=document.querySel
 toolButtons.forEach(b=>b.onclick=()=>{state.tool=b.dataset.tool;toolButtons.forEach(x=>x.classList.toggle('active',x===b));document.body.classList.toggle('drawing',['pen','highlighter'].includes(state.tool));document.body.classList.toggle('eraser',state.tool==='eraser');strokesRoot.querySelectorAll('path').forEach(p=>p.style.pointerEvents=state.tool==='eraser'?'stroke':'none');});
 function fitView() {
   if (!state.page || (!state.page.items.length && !state.page.strokes.length)) {
-    state.view = {x: 55, y: 45, zoom: 0.62};
+    state.view = {x: 0, y: 0, zoom: 0.5};
     setView();
     return;
   }
