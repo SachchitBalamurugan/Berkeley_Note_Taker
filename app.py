@@ -2,6 +2,7 @@ import io
 import json
 import os
 import sqlite3
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -226,6 +227,22 @@ def create_app(test_config=None):
             FROM pages p JOIN notebooks n ON n.id = p.notebook_id LEFT JOIN board_items b ON b.page_id = p.id
             WHERE n.title LIKE ? OR p.title LIKE ? OR (b.kind = 'note' AND b.content LIKE ?) ORDER BY n.position, p.position""", (like, like, like))
         conn.close(); return jsonify(results)
+
+    @app.post("/api/sync")
+    def sync_to_github():
+        try:
+            cwd = str(BASE_DIR)
+            subprocess.run(["git", "add", "whiteboard.db"], cwd=cwd, capture_output=True, check=True)
+            result = subprocess.run(["git", "commit", "-m", "Auto-sync: Update database"], cwd=cwd, capture_output=True, text=True)
+            if result.returncode == 0 or "nothing to commit" in result.stdout.lower() or "nothing to commit" in result.stderr.lower():
+                push = subprocess.run(["git", "push", "origin", "main"], cwd=cwd, capture_output=True, text=True)
+                if push.returncode == 0: return jsonify({"status": "success", "message": "Changes pushed to GitHub"}), 200
+                else: return jsonify({"status": "error", "message": push.stderr or push.stdout}), 400
+            else: return jsonify({"status": "error", "message": result.stderr or result.stdout}), 400
+        except subprocess.CalledProcessError as e:
+            return jsonify({"status": "error", "message": e.stderr.decode() if isinstance(e.stderr, bytes) else str(e)}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
 
     @app.errorhandler(RequestEntityTooLarge)
     def file_too_large(error):

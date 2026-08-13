@@ -1,6 +1,10 @@
 const api = async (url, options = {}) => {
   const response = await fetch(url, {headers: options.body instanceof FormData ? {} : {'Content-Type': 'application/json'}, ...options});
-  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || await response.text() || 'Request failed');
+  if (!response.ok) {
+    const text = await response.text();
+    try { throw new Error(JSON.parse(text).error || text || 'Request failed'); }
+    catch { throw new Error(text || 'Request failed'); }
+  }
   return response.status === 204 ? null : response.json();
 };
 
@@ -161,6 +165,7 @@ document.querySelector('#addText').onclick=async()=>{
   const text=itemsRoot.querySelector(`.item[data-id="${item.id}"] .note`); text?.focus();
 };
 document.querySelector('#upload').onchange=async e=>{const file=e.target.files[0];if(!file||!state.page)return;const form=new FormData();form.append('image',file);try{const item=await api(`/api/pages/${state.page.id}/upload`,{method:'POST',body:form});state.page.items.push(item);renderItem(item);}catch(err){alert(err.message)}e.target.value='';};
+document.querySelector('#syncBtn').onclick=async()=>{const btn=document.querySelector('#syncBtn');btn.disabled=true;btn.textContent='⏳ Syncing...';try{const res=await api('/api/sync',{method:'POST'});btn.textContent='✓ '+res.message;setTimeout(()=>{btn.textContent='☁ Sync'},3000);}catch(err){btn.textContent='✗ Sync failed';console.error(err);setTimeout(()=>{btn.textContent='☁ Sync'},3000);}finally{btn.disabled=false;}};
 toolButtons.forEach(b=>b.onclick=()=>{state.tool=b.dataset.tool;toolButtons.forEach(x=>x.classList.toggle('active',x===b));document.body.classList.toggle('drawing',['pen','highlighter'].includes(state.tool));document.body.classList.toggle('eraser',state.tool==='eraser');strokesRoot.querySelectorAll('path').forEach(p=>p.style.pointerEvents=state.tool==='eraser'?'stroke':'none');});
 document.querySelector('#undo').onclick=undo;
 document.querySelector('#redo').onclick=redo;
