@@ -90,8 +90,14 @@ function renderItem(item, fontSize) {
     content.spellcheck=true;
     content.textContent=item.content;
     if(fontSize) content.style.fontSize=`${fontSize}px`;
+    const controls=node.querySelector('.text-controls');
     content.addEventListener('pointerdown',e=>e.stopPropagation());
+    content.addEventListener('focus',()=>{controls.hidden=false;});
+    content.addEventListener('blur',()=>{controls.hidden=true;});
     content.addEventListener('input',debounce(async()=>{item.content=content.textContent; await saveItem(item,['content']);}));
+    controls.querySelectorAll('button').forEach(btn=>{
+      btn.onclick=e=>{e.stopPropagation();const step=15;if(btn.dataset.move==='up') item.y=Math.max(0,item.y-step);else if(btn.dataset.move==='down') item.y+=step;else if(btn.dataset.move==='left') item.x=Math.max(0,item.x-step);else if(btn.dataset.move==='right') item.x+=step;else if(btn.dataset.size==='up'){item.width+=step;item.height+=step;}else if(btn.dataset.size==='down'){item.width=Math.max(130,item.width-step);item.height=Math.max(80,item.height-step);}else if(btn.dataset.font==='up') content.style.fontSize=Math.min(48,parseInt(content.style.fontSize||16)+2)+'px';else if(btn.dataset.font==='down') content.style.fontSize=Math.max(10,parseInt(content.style.fontSize||16)-2)+'px';node.style.left=item.x+'px';node.style.top=item.y+'px';node.style.width=item.width+'px';node.style.height=item.height+'px';saveItem(item,['x','y','width','height']);};
+    });
     node.insertBefore(content,node.firstChild);
   } else {
     const img=document.createElement('img');
