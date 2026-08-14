@@ -71,10 +71,10 @@ function closePage(){ state.page=null; workspace.hidden=true; empty.hidden=false
 async function openPage(id) { state.page = await api(`/api/pages/${id}`); state.history=[]; state.redo=[]; updateHistoryButtons(); workspace.hidden=false; empty.hidden=true; pageTitle.value=state.page.title; renderBoard(); renderTree(); }
 
 function renderBoard() { itemsRoot.innerHTML = ''; strokesRoot.innerHTML = ''; state.page.strokes.forEach(renderStroke); state.page.items.forEach(renderItem); setView(); }
-function renderItem(item) {
+function renderItem(item, fontSize) {
   const node = document.querySelector('#itemTemplate').content.firstElementChild.cloneNode(true); node.dataset.id=item.id; node.classList.add(item.kind); node.style.left=`${item.x}px`; node.style.top=`${item.y}px`; node.style.width=`${item.width}px`; node.style.height=`${item.height}px`; node.style.zIndex=String(item.position+1);
   node.querySelector('.delete').onclick = async e => { e.stopPropagation(); if(confirm('Delete this item?')) { await api(`/api/items/${item.id}`,{method:'DELETE'}); state.page.items=state.page.items.filter(i=>i.id!==item.id); node.remove(); } };
-  if(item.kind==='note') { node.style.background=item.color; if(item.color==='transparent') node.classList.add('text-box'); const content=document.createElement('div'); content.className='note'; content.contentEditable='true'; content.spellcheck=true; content.textContent=item.content; content.addEventListener('pointerdown',e=>e.stopPropagation()); content.addEventListener('input',debounce(async()=>{item.content=content.textContent; await saveItem(item,['content']);})); node.insertBefore(content,node.firstChild); }
+  if(item.kind==='note') { node.style.background=item.color; if(item.color==='transparent') node.classList.add('text-box'); const content=document.createElement('div'); content.className='note'; content.contentEditable='true'; content.spellcheck=true; content.textContent=item.content; if(fontSize) content.style.fontSize=`${fontSize}px`; content.addEventListener('pointerdown',e=>e.stopPropagation()); content.addEventListener('input',debounce(async()=>{item.content=content.textContent; await saveItem(item,['content']);})); node.insertBefore(content,node.firstChild); }
   else { const img=document.createElement('img'); img.src=`/uploads/${encodeURIComponent(item.image_name)}`; img.alt='Uploaded note image'; node.insertBefore(img,node.firstChild); }
   node.addEventListener('pointerdown', startItemAction); itemsRoot.append(node);
 }
@@ -118,6 +118,7 @@ function canvasDown(e) {
   if(e.pointerType==='touch') { state.touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(state.touchPoints.size===2) { beginPinch(); viewport.setPointerCapture(e.pointerId); return; } }
   if(state.tool==='select' && (e.target===viewport || e.target===board)) { state.interaction={type:'pan',pointerId:e.pointerId,startClient:{x:e.clientX,y:e.clientY},x:state.view.x,y:state.view.y}; viewport.setPointerCapture(e.pointerId); return; }
   if(state.tool==='eraser') { const stroke=strokeAt(boardPoint(e)); if(stroke) eraseStroke(stroke.id); return; }
+  if(state.tool==='text' && (e.target===board || e.target===strokesRoot || e.target===viewport)) { const point=boardPoint(e); createTextBox(point.x, point.y); return; }
   if(['pen','highlighter'].includes(state.tool) && (e.target===board || e.target===strokesRoot || e.target===viewport)) { const point=boardPoint(e), path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.classList.add('stroke'); path.setAttribute('stroke',document.querySelector('#color').value); path.setAttribute('stroke-width',document.querySelector('#brushSize').value); if(state.tool==='highlighter')path.setAttribute('opacity','.32'); strokesRoot.append(path); state.interaction={type:'draw',pointerId:e.pointerId,points:[point],path, tool:state.tool}; viewport.setPointerCapture(e.pointerId); board.setAttribute('data-drawing',''); }
 }
 function pointerMove(e) {
@@ -152,6 +153,7 @@ async function eraseStroke(id) { let stroke=state.page.strokes.find(s=>s.id===id
 
 async function createNote(data) { return api(`/api/pages/${state.page.id}/items`,{method:'POST',body:JSON.stringify({kind:'note',...data})}); }
 async function removeItem(item) { await api(`/api/items/${item.id}`,{method:'DELETE'}); state.page.items=state.page.items.filter(i=>i.id!==item.id); itemsRoot.querySelector(`.item[data-id="${item.id}"]`)?.remove(); }
+async function createTextBox(x, y) { if(!state.page)return; const fontSize=document.querySelector('#fontSize').value; const data={content:'',color:'transparent',x:x,y:y,width:200,height:60}; let item=await createNote(data); state.page.items.push(item); renderItem(item,fontSize); const text=itemsRoot.querySelector(`.item[data-id="${item.id}"] .note`); text?.focus(); record({undo:()=>removeItem(item),redo:async()=>{item=await createNote(data);state.page.items.push(item);renderItem(item,fontSize);}});}}
 document.querySelector('#addNotebook').onclick=createNotebook;
 document.querySelector('#addNote').onclick=async()=>{
   if(!state.page)return;
@@ -168,7 +170,7 @@ document.querySelector('#addText').onclick=async()=>{
 };
 document.querySelector('#upload').onchange=async e=>{const file=e.target.files[0];if(!file||!state.page)return;const form=new FormData();form.append('image',file);try{const item=await api(`/api/pages/${state.page.id}/upload`,{method:'POST',body:form});state.page.items.push(item);renderItem(item);}catch(err){alert(err.message)}e.target.value='';};
 document.querySelector('#syncBtn').onclick=async()=>{const btn=document.querySelector('#syncBtn');btn.disabled=true;btn.textContent='⏳ Syncing...';try{const res=await api('/api/sync',{method:'POST'});btn.textContent='✓ '+res.message;setTimeout(()=>{btn.textContent='☁ Sync'},3000);}catch(err){btn.textContent='✗ Sync failed';console.error(err);setTimeout(()=>{btn.textContent='☁ Sync'},3000);}finally{btn.disabled=false;}};
-toolButtons.forEach(b=>b.onclick=()=>{state.tool=b.dataset.tool;toolButtons.forEach(x=>x.classList.toggle('active',x===b));document.body.classList.toggle('drawing',['pen','highlighter'].includes(state.tool));document.body.classList.toggle('eraser',state.tool==='eraser');strokesRoot.querySelectorAll('path').forEach(p=>p.style.pointerEvents=state.tool==='eraser'?'stroke':'none');});
+toolButtons.forEach(b=>b.onclick=()=>{state.tool=b.dataset.tool;toolButtons.forEach(x=>x.classList.toggle('active',x===b));document.body.classList.toggle('drawing',['pen','highlighter'].includes(state.tool));document.body.classList.toggle('eraser',state.tool==='eraser');document.querySelector('#fontLabel').hidden=state.tool!=='text';strokesRoot.querySelectorAll('path').forEach(p=>p.style.pointerEvents=state.tool==='eraser'?'stroke':'none');});
 function fitView() {
   if (!state.page || (!state.page.items.length && !state.page.strokes.length)) {
     state.view = {x: 0, y: 0, zoom: 0.5};
@@ -202,6 +204,7 @@ function fitView() {
 document.querySelector('#undo').onclick=undo;
 document.querySelector('#redo').onclick=redo;
 document.querySelector('#brushSize').oninput=e=>{document.querySelector('#brushValue').value=e.target.value;document.querySelector('#brushValue').textContent=e.target.value;};
+document.querySelector('#fontSize').oninput=e=>{document.querySelector('#fontValue').value=e.target.value;document.querySelector('#fontValue').textContent=e.target.value;};
 document.addEventListener('keydown',e=>{ if(!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=='z'||e.target.isContentEditable||['INPUT','TEXTAREA'].includes(e.target.tagName)) return; e.preventDefault(); if(e.shiftKey) redo(); else undo(); });
 pageTitle.addEventListener('change',async()=>{if(state.page&&pageTitle.value.trim()){state.page.title=pageTitle.value.trim();await api(`/api/pages/${state.page.id}`,{method:'PATCH',body:JSON.stringify({title:state.page.title})});refreshTree();}});
 viewport.addEventListener('pointerdown',canvasDown); viewport.addEventListener('pointermove',pointerMove); viewport.addEventListener('pointerup',pointerUp); viewport.addEventListener('pointercancel',pointerUp);
