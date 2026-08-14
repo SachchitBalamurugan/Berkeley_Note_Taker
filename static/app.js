@@ -153,7 +153,7 @@ async function eraseStroke(id) { let stroke=state.page.strokes.find(s=>s.id===id
 
 async function createNote(data) { return api(`/api/pages/${state.page.id}/items`,{method:'POST',body:JSON.stringify({kind:'note',...data})}); }
 async function removeItem(item) { await api(`/api/items/${item.id}`,{method:'DELETE'}); state.page.items=state.page.items.filter(i=>i.id!==item.id); itemsRoot.querySelector(`.item[data-id="${item.id}"]`)?.remove(); }
-async function createTextBox(x, y) { if(!state.page)return; const fontSize=document.querySelector('#fontSize').value; const data={content:'',color:'transparent',x:x,y:y,width:200,height:60}; let item=await createNote(data); state.page.items.push(item); renderItem(item,fontSize); const text=itemsRoot.querySelector(`.item[data-id="${item.id}"] .note`); text?.focus(); record({undo:()=>removeItem(item),redo:async()=>{item=await createNote(data);state.page.items.push(item);renderItem(item,fontSize);}});}}
+async function createTextBox(x, y) { if(!state.page)return; const fontSize=document.querySelector('#fontSize').value; const data={content:'',color:'transparent',x:x,y:y,width:200,height:60}; let item=await createNote(data); state.page.items.push(item); renderItem(item,fontSize); const text=itemsRoot.querySelector(`.item[data-id="${item.id}"] .note`); text?.focus(); record({undo:()=>removeItem(item),redo:async()=>{item=await createNote(data);state.page.items.push(item);renderItem(item,fontSize);}});}
 document.querySelector('#addNotebook').onclick=createNotebook;
 document.querySelector('#addNote').onclick=async()=>{
   if(!state.page)return;
