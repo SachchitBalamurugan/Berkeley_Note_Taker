@@ -235,12 +235,16 @@ def create_app(test_config=None):
     @app.post("/api/sync")
     def sync_to_github():
         try:
+            from datetime import datetime
             cwd = str(BASE_DIR)
-            subprocess.run(["git", "add", "whiteboard.db", "uploads/"], cwd=cwd, capture_output=True, check=True)
-            result = subprocess.run(["git", "commit", "-m", "Auto-sync: Update database and images"], cwd=cwd, capture_output=True, text=True)
+            # Add all changes (code, data, images)
+            subprocess.run(["git", "add", "-A"], cwd=cwd, capture_output=True, check=True)
+            # Create commit with timestamp
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            result = subprocess.run(["git", "commit", "-m", f"Auto-sync: All changes ({timestamp})"], cwd=cwd, capture_output=True, text=True)
             if result.returncode == 0 or "nothing to commit" in result.stdout.lower() or "nothing to commit" in result.stderr.lower():
                 push = subprocess.run(["git", "push", "origin", "main"], cwd=cwd, capture_output=True, text=True)
-                if push.returncode == 0: return jsonify({"status": "success", "message": "Changes pushed to GitHub"}), 200
+                if push.returncode == 0: return jsonify({"status": "success", "message": "All changes pushed to GitHub ✓"}), 200
                 else: return jsonify({"status": "error", "message": push.stderr or push.stdout}), 400
             else: return jsonify({"status": "error", "message": result.stderr or result.stdout}), 400
         except subprocess.CalledProcessError as e:
