@@ -291,7 +291,7 @@ function renderItem(item, docPage) {
 function beginEditing(body, item) {
   body.contentEditable = 'true';
   document.body.classList.add('editing');
-  body.focus();
+  body.focus({preventScroll: true});   // plain focus() yanks the viewer to the caret
   const range = document.createRange();
   range.selectNodeContents(body);
   window.getSelection().removeAllRanges();
