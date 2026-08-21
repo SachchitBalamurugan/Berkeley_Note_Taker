@@ -1,6 +1,100 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Notes Whiteboard</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
-<link rel="stylesheet" href="{{ url_for('static', filename='overrides.css') }}"><body>
-<aside><header><h1>Notes</h1><button id="addNotebook">+ Notebook</button></header><div class="search"><input id="search" placeholder="Search all notes"><div id="results"></div></div><div id="tree"></div></aside>
-<main><section id="empty"><h2>Start a notebook</h2><p>Create a subject notebook, then add pages for your notes.</p></section><section id="workspace" hidden><header id="topbar"><input id="pageTitle" aria-label="Page title"><div class="tools"><div class="tool-group"><button id="undo" title="Undo (Ctrl+Z)" disabled>↶</button><button id="redo" title="Redo (Ctrl+Shift+Z)" disabled>↷</button></div><div class="tool-group"><button data-tool="select" class="active" title="Select">⬌</button><button data-tool="pen" title="Draw">✏</button><button data-tool="highlighter" title="Highlight">🖍</button><button data-tool="text" title="Text">A</button><button data-tool="eraser" title="Erase">⌫</button></div><div class="tool-group" id="styleGroup"><input id="color" type="color" value="#263238" title="Tool color"><label class="brush">Size<input id="brushSize" type="range" min="1" max="30" value="6"></label><label class="brush" id="fontLabel" hidden>Font<input id="fontSize" type="range" min="10" max="48" value="16"></label></div><div class="tool-group"><button id="addNote" title="Add note">📌</button><button id="addText" title="Add text">📝</button><label class="upload" title="Upload image"><input id="upload" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden>🖼</label></div><div class="tool-group"><button id="syncBtn" title="Push changes to GitHub">☁</button></div></div></header><div id="viewport"><div id="board"><svg id="strokes"></svg><div id="items"></div></div><div id="navContainer"><button class="nav-btn nav-up" title="Pan Up" data-dir="up">▲</button><button class="nav-btn nav-down" title="Pan Down" data-dir="down">▼</button><button class="nav-btn nav-left" title="Pan Left" data-dir="left">◄</button><button class="nav-btn nav-right" title="Pan Right" data-dir="right">►</button><button class="nav-btn nav-fit" id="fit" title="Fit view to content">⌖</button><button class="nav-btn nav-zoom-in" title="Zoom In" data-zoom="in">+</button><button class="nav-btn nav-zoom-out" title="Zoom Out" data-zoom="out">−</button><div id="joystick"><div id="joystick-stick"></div></div></div></div></section></main>
-<template id="itemTemplate"><article class="item"><button class="delete" title="Delete">×</button><div class="resize"></div><div class="text-controls" hidden><button class="move-up" title="Move up" data-move="up">▲</button><button class="move-down" title="Move down" data-move="down">▼</button><button class="move-left" title="Move left" data-move="left">◄</button><button class="move-right" title="Move right" data-move="right">►</button><button class="size-up" title="Larger" data-size="up">+</button><button class="size-down" title="Smaller" data-size="down">−</button><button class="font-up" title="Font bigger" data-font="up">A↑</button><button class="font-down" title="Font smaller" data-font="down">A↓</button></div></article></template><script src="{{ url_for('static', filename='app.js') }}"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Document Annotator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<aside>
+  <header>
+    <h1>Documents</h1>
+    <button id="addNotebook" title="New folder">+ Folder</button>
+  </header>
+  <div class="search">
+    <input id="search" placeholder="Search documents and notes">
+    <div id="results"></div>
+  </div>
+  <div id="tree"></div>
+</aside>
+
+<main>
+  <section id="empty">
+    <h2>Upload a document</h2>
+    <p>Create a folder, then upload a PDF or image and mark it up — pen, highlighter, text, and sticky notes.</p>
+  </section>
+
+  <section id="workspace" hidden>
+    <header id="topbar">
+      <input id="pageTitle" aria-label="Document name">
+      <div class="tools">
+        <div class="tool-group">
+          <button id="undo" title="Undo (Ctrl+Z)" disabled>&#8624;</button>
+          <button id="redo" title="Redo (Ctrl+Shift+Z)" disabled>&#8625;</button>
+        </div>
+        <div class="tool-group">
+          <button data-tool="select" class="active" title="Select and move annotations">&#10021;</button>
+          <button data-tool="pen" title="Pen">&#9998;</button>
+          <button data-tool="highlighter" title="Highlighter">&#9646;</button>
+          <button data-tool="text" title="Text — click the page to type">A</button>
+          <button data-tool="note" title="Sticky note — click the page to place">&#128221;</button>
+          <button data-tool="eraser" title="Eraser — click a stroke to remove it">&#9003;</button>
+        </div>
+        <div class="tool-group">
+          <input id="color" type="color" value="#e02424" title="Ink colour">
+          <label class="brush" id="brushLabel">Size<input id="brushSize" type="range" min="1" max="40" value="4"><output id="brushValue">4</output></label>
+          <label class="brush" id="fontLabel" hidden>Font<input id="fontSize" type="range" min="8" max="72" value="16"><output id="fontValue">16</output></label>
+        </div>
+        <div class="tool-group">
+          <label class="upload" title="Stamp an image on this page">
+            <input id="upload" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden>&#128247;
+          </label>
+          <button id="addPage" title="Append a blank page">+ Page</button>
+        </div>
+        <div class="tool-group">
+          <button id="zoomOut" title="Zoom out">&minus;</button>
+          <output id="zoomValue">100%</output>
+          <button id="zoomIn" title="Zoom in">+</button>
+          <button id="fitWidth" title="Fit page width">&#8596;</button>
+        </div>
+        <div class="tool-group">
+          <button id="exportDoc" title="Export annotated PDF">&#8681; PDF</button>
+          <button id="syncBtn" title="Push changes to GitHub">&#9729;</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="viewer">
+      <div id="pageColumn"></div>
+    </div>
+
+    <footer id="statusbar">
+      <button id="prevPage" title="Previous page">&#9650;</button>
+      <span id="pageCounter">Page 1 of 1</span>
+      <button id="nextPage" title="Next page">&#9660;</button>
+      <span id="hint">Select a tool, then draw straight on the page</span>
+    </footer>
+  </section>
+</main>
+
+<template id="docPageTemplate">
+  <article class="doc-page">
+    <img class="page-img" alt="Document page">
+    <svg class="page-strokes" preserveAspectRatio="none"></svg>
+    <div class="page-items"></div>
+    <div class="page-surface"></div>
+    <div class="page-badge"><span class="page-label"></span><button class="page-remove" title="Delete this page">&times;</button></div>
+  </article>
+</template>
+
+<template id="itemTemplate">
+  <div class="item">
+    <button class="delete" title="Delete">&times;</button>
+    <div class="resize"></div>
+  </div>
+</template>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
