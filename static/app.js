@@ -553,6 +553,9 @@ function selectTool(tool) {
   document.body.classList.add(`tool-${tool}`);
   document.querySelector('#fontLabel').hidden = !['text', 'note'].includes(tool);
   document.querySelector('#brushLabel').hidden = !['pen', 'highlighter'].includes(tool);
+  setHint(tool === 'select'
+    ? 'Move: drag annotations, scroll the document'
+    : 'Page held still while you work — pick Move to scroll');
   if (tool !== 'select') selectItem(null);
 }
 

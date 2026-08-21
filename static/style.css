@@ -127,6 +127,7 @@ main { min-width: 0; flex: 1; display: flex; }
   flex: 1; overflow: auto; padding: 26px 20px 60px; scroll-behavior: smooth;
   background: var(--grain), linear-gradient(#4a2c19, #2b1a0f);
   scrollbar-color: var(--oak) var(--walnut-deep);
+  scrollbar-gutter: stable;   /* reserve the track so locking does not shift the page sideways */
 }
 #pageColumn { display: flex; flex-direction: column; align-items: center; gap: 22px; }
 
@@ -176,10 +177,12 @@ main { min-width: 0; flex: 1; display: flex; }
 body.tool-select .page-surface { pointer-events: none; }
 body.tool-select .item { pointer-events: auto; cursor: move; }
 
-/* A drawing tool must own the pointer: with any pan allowed here, the browser
-   scrolls the page out from under the pen instead of letting it draw. The wheel,
-   the scrollbar, the page buttons, and the desk around the page still scroll. */
+/* Only Move scrolls. Every other tool pins the document where it is: touch-action
+   stops the pen and finger panning it, and overflow:hidden stops the wheel, the
+   trackpad, the scrollbar, and the arrow keys. The page buttons still work,
+   because overflow:hidden leaves programmatic scrolling alone. */
 body:not(.tool-select) .doc-page { touch-action: none; }
+body:not(.tool-select) #viewer { overflow: hidden; }
 body.tool-select .item { touch-action: none; }
 body:not(.tool-select) .page-items { pointer-events: none; }
 body.tool-pen .page-surface, body.tool-highlighter .page-surface { cursor: crosshair; }
